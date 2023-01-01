@@ -104,7 +104,7 @@ class Bongo(object):
                 self._sprite[0] = 0
 
 
-def Loop(_data, macropad, encoder_position):
+def Loop(macropad, encoder_position):
     bongo = Bongo()
 
     bongo.x = 40
@@ -115,7 +115,7 @@ def Loop(_data, macropad, encoder_position):
 
     macropad.display.show(group)
 
-    macropad.pixels.fill((0, 0, 0))
+    macropad.pixels.fill((0,0,0))
     macropad.pixels.show()
 
     while True:
@@ -126,12 +126,11 @@ def Loop(_data, macropad, encoder_position):
         pos = macropad.encoder
 
         if not pos == encoder_position:
-            return _data
+            return
 
 
 app = {
     'name': 'Pomodoro',
     'macros': [],
     'custom_func': Loop,
-    'custom_data': {}
 }
