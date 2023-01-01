@@ -4,19 +4,33 @@ This is a modified version of the OG [Hotkeys](https://learn.adafruit.com/macrop
 
 ## Included Extensions
 
-### Pomodoro Timer
+### Pomodoro Timer ([?](https://todoist.com/productivity-methods/pomodoro-technique))
 
-TODO
+![screenshot of pomodoro](screenshots/pomodoro.jpg)
+
+`/macros/pomodoro.py`
+
+#### Buttons
+
+- **Green** - Start a pomodoro session
+- **Yellow** - Pause/resume a session
+- **Red** - Doesn't do anything yet
+
+#### Configuring Pomodoro Sessions
+
+You can customize the sessions duration, short break duration, long break duration and the sequence in which they occur by changing the constant variables defined in `/macros/pomodoro.py`
 
 ### Bongo Cat
 
-Bongo cat that taps when you tap. Based off of [this repo](https://github.com/christanaka/circuitpython-bongo).
+![bonogo](screenshots/bongo.jpg)
 
-TODO: Info on how this works
+`/macros/bongo.py`
+
+Bongo cat that taps when you tap. Based off of [this repo](https://github.com/christanaka/circuitpython-bongo).
 
 ## Creating your own extensions
 
-TODO
+You can use the template given in `/macros/sample.py` to create your own extensions.
 
 ## Roadmap
 

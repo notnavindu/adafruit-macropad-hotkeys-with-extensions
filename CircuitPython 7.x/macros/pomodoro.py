@@ -6,7 +6,6 @@
 
 
 import time
-import rtc
 import displayio
 import terminalio
 from adafruit_display_shapes.rect import Rect
@@ -17,7 +16,6 @@ data = {
     "start_time": None,
     "paused_at": 0,
     "offset": 0,  # used for pausing and resuming
-
     "session_count": 0,
     "session_ended": False
 }
@@ -48,11 +46,7 @@ sequence = [
 ]
 
 
-def Pomodoro(_data, macropad, encoder_position):
-    data = _data  # get saved data from parent
-
-    print(data)
-
+def Pomodoro(macropad, encoder_position):
     macropad.pixels.fill((0, 0, 0))
 
     macropad.pixels[0] = (27, 148, 0)
@@ -85,7 +79,6 @@ def Pomodoro(_data, macropad, encoder_position):
             ),
             anchor_point=(1 / 2, 0.5),
             scale=2,
-
         )
     )
 
@@ -100,7 +93,6 @@ def Pomodoro(_data, macropad, encoder_position):
             ),
             anchor_point=(0.5, 0.5),
             scale=1,
-
         )
     )
 
@@ -130,11 +122,11 @@ def Pomodoro(_data, macropad, encoder_position):
                     else:
                         data["paused_at"] = time.time()
 
+        # exit -------------------------------------
         pos = macropad.encoder
 
         if not pos == encoder_position:
-            print("Exit at: ", data["start_time"])
-            return data["start_time"]
+            return
 
         # Calculate time difference ---------------
         if not data["start_time"] == None:
