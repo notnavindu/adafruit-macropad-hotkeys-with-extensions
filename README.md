@@ -26,7 +26,7 @@ You can customize the sessions duration, short break duration, long break durati
 
 `/macros/bongo.py`
 
-Bongo cat that taps when you tap. Based off of [this repo](https://github.com/christanaka/circuitpython-bongo).
+Bongo cat that taps when you tap. Based off of [this repo](https://github.com/christanaka/circuitpython-bongo). [Dependencies](https://github.com/christanaka/circuitpython-bongo#quick-start) required by bongo cat are included in the `/lib` directory.
 
 ## Creating your own extensions
 
