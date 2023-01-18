@@ -14,11 +14,16 @@ This is a modified version of the OG [Hotkeys](https://learn.adafruit.com/macrop
 
 - **Green** - Start a pomodoro session
 - **Yellow** - Pause/resume a session
-- **Red** - Doesn't do anything yet
+- **Red** - Skip the current session
 
 #### Configuring Pomodoro Sessions
 
 You can customize the sessions duration, short break duration, long break duration and the sequence in which they occur by changing the constant variables defined in `/macros/pomodoro.py`
+
+#### Notes
+
+- "Slacking time" displayed after a session is calculated by `(time since first open) - (focused time)`
+- Code is a bit messy as of now
 
 ### Bongo Cat
 
@@ -37,5 +42,6 @@ You can use the template given in `/macros/sample.py` to create your own extensi
 - [x] Base structure
 - [x] Pomodoro Timer
 - [x] Bongo Cat
-- [ ] Save Pomodoro session times in a file
-- [ ] Refactor Pomodoro timer to use classes
+- [x] Track focused time
+- [x] Track slacking time
+- [ ] Refactor/clean up Pomodoro timer 🧹
