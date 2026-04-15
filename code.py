@@ -38,6 +38,7 @@ class MacroApp:
     def __init__(self, appdata):
         self.name = appdata["name"]
         self.macros = appdata["macros"]
+        self.auto_return = appdata.get("auto_return", False)
 
     def activate(self, macropad):
         """Show key labels and LED colours for this macro set."""
@@ -394,6 +395,8 @@ while True:
             else:
                 app.activate(macropad)
                 state = STATE_APP
+                while macropad.keys.events.get():
+                    pass
             last_encoder_pos = macropad.encoder
 
         # Key press → launch that app
@@ -412,6 +415,8 @@ while True:
                     else:
                         app.activate(macropad)
                         state = STATE_APP
+                        while macropad.keys.events.get():
+                            pass
                     last_encoder_pos = macropad.encoder
 
         last_encoder_switch = encoder_switch
@@ -454,6 +459,18 @@ while True:
             macropad.pixels.show()
 
         _execute_sequence(macropad, sequence, pressed)
+
+        if pressed and key_number < 12 and app.auto_return:
+            macropad.keyboard.release_all()
+            macropad.consumer_control.release()
+            macropad.mouse.release_all()
+            macropad.stop_tone()
+            while macropad.keys.events.get():
+                pass
+            state = STATE_HOME
+            last_encoder_pos = macropad.encoder
+            home.draw(apps, current_page)
+            continue
 
         if not pressed and key_number < 12:
             macropad.pixels[key_number] = app.macros[key_number][0]

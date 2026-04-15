@@ -16,6 +16,7 @@ from adafruit_hid.consumer_control_code import ConsumerControlCode
 
 app = {
     "name": "My Macros",   # shown on the home screen (keep it short)
+    "auto_return": False,  # True = return to home screen after any key press
     "macros": [
         # ---- Row 1 (keys 0-2) ----
         # (LED colour,  label,   [sequence])

@@ -9,7 +9,7 @@
 SLEEP_ENABLED = True
 
 # Seconds of idle input before the screen sleeps.
-SLEEP_TIMEOUT = 5
+SLEEP_TIMEOUT = 60
 
 # Which screensaver to show when the display sleeps.
 # Options:

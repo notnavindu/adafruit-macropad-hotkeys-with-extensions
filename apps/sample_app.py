@@ -19,6 +19,7 @@ from adafruit_display_text import label
 
 state = {
     "counter": 0,
+    "white_screen": False,
 }
 
 # ---------------------------------------------------------------------------
@@ -42,17 +43,25 @@ def run(macropad):
     group.append(counter_label)
     macropad.display.root_group = group
 
+    # --- White screen overlay for dead-pixel / burn-in check ---
+    white_group = displayio.Group()
+    white_group.append(Rect(0, 0, macropad.display.width, macropad.display.height, fill=0xFFFFFF))
+
     # --- Set up LEDs (optional) ---
     macropad.pixels.fill((0, 0, 0))
     macropad.pixels[0] = (0, 80, 0)   # green: increment
     macropad.pixels[1] = (80, 0, 0)   # red:   decrement
+    macropad.pixels[2] = (80, 80, 80) # white: toggle white screen
     macropad.pixels.show()
+
+    macropad.display.refresh()
 
     # --- Main loop ---
     while True:
         # Always check encoder first — press = go home
         macropad.encoder_switch_debounced.update()
         if macropad.encoder_switch_debounced.pressed:
+            state["white_screen"] = False
             return  # hand control back to Macropad OS
 
         event = macropad.keys.events.get()
@@ -61,6 +70,12 @@ def run(macropad):
                 state["counter"] += 1
             elif event.key_number == 1:
                 state["counter"] -= 1
+            elif event.key_number == 2:
+                state["white_screen"] = not state["white_screen"]
+                if state["white_screen"]:
+                    macropad.display.root_group = white_group
+                else:
+                    macropad.display.root_group = group
 
             counter_label.text = str(state["counter"])
             macropad.display.refresh()
