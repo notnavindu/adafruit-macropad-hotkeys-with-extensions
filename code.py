@@ -39,6 +39,11 @@ class MacroApp:
         self.name = appdata["name"]
         self.macros = appdata["macros"]
         self.auto_return = appdata.get("auto_return", False)
+        # Per-app exit key: explicit None means "disabled even if config has one"
+        if "exit_key" in appdata:
+            self.exit_key = appdata["exit_key"]
+        else:
+            self.exit_key = config.EXIT_KEY
 
     def activate(self, macropad):
         """Show key labels and LED colours for this macro set."""
@@ -49,6 +54,9 @@ class MacroApp:
             else:
                 macropad.pixels[i] = 0
                 _home_group[i].text = ""
+        if self.exit_key is not None and self.exit_key < 12:
+            macropad.pixels[self.exit_key] = 0x440000
+            _home_group[self.exit_key].text = "Exit"
         _home_group[13].text = self.name
         macropad.pixels.show()
         macropad.display.root_group = _home_group
@@ -209,15 +217,22 @@ def _build_macro_group(macropad):
 
 def load_apps(folder):
     apps = []
-    try:
-        files = sorted(os.listdir(folder))
-    except OSError:
-        return apps
 
-    for filename in files:
-        if not filename.endswith(".py") or filename.startswith(("._", "_")):
-            continue
-        module_path = folder + "/" + filename[:-3]
+    app_list = getattr(config, "APPS", None)
+    if app_list:
+        names = app_list
+    else:
+        try:
+            files = sorted(os.listdir(folder))
+        except OSError:
+            return apps
+        names = [
+            f[:-3] for f in files
+            if f.endswith(".py") and not f.startswith(("._", "_"))
+        ]
+
+    for name in names:
+        module_path = folder + "/" + name
         try:
             module = __import__(module_path)
             appdata = module.app
@@ -226,7 +241,7 @@ def load_apps(folder):
             elif "macros" in appdata:
                 apps.append(MacroApp(appdata))
         except Exception as err:
-            print("ERROR loading", filename)
+            print("ERROR loading", name)
             traceback.print_exception(err, err, err.__traceback__)
 
     return apps
@@ -449,6 +464,19 @@ while True:
         pressed = event.pressed
 
         if key_number >= len(app.macros):
+            continue
+
+        # Exit button intercept
+        if pressed and key_number == app.exit_key:
+            macropad.keyboard.release_all()
+            macropad.consumer_control.release()
+            macropad.mouse.release_all()
+            macropad.stop_tone()
+            while macropad.keys.events.get():
+                pass
+            state = STATE_HOME
+            last_encoder_pos = macropad.encoder
+            home.draw(apps, current_page)
             continue
 
         sequence = app.macros[key_number][2]

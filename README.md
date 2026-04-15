@@ -26,6 +26,45 @@ The `lib/` folder already contains all required compiled libraries for CircuitPy
 
 > **Bongo Cat**: also copy the `bongo/` folder (containing `bongo.bmp`) to the device root if you want to use that app.
 
+### 3. (Optional) Configure
+
+Copy `config.py` to the device root to customise behaviour. All settings have sensible defaults when the file is absent.
+
+---
+
+## Configuration
+
+`config.py` lives in the device root alongside `code.py`. Copy the one from this repo and edit it to suit your setup.
+
+### App list
+
+```python
+APPS = [
+    "media",
+    "numpad",
+    "pomodoro",
+    "bongo",
+]
+```
+
+`APPS` controls which apps are loaded and the order they appear on the home screen. Each entry is the module filename without `.py`. Omit the setting (or set it to `None`) to load every `.py` file in `apps/` alphabetically.
+
+### Screensaver / sleep
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `SLEEP_ENABLED` | `True` | Set to `False` to disable the screensaver entirely. |
+| `SLEEP_TIMEOUT` | `60` | Seconds of idle input before the screen sleeps. |
+| `SCREENSAVER` | `"rain"` | Which screensaver to show. Options: `"black"`, `"bounce"`, `"stars"`, `"lines"`, `"rain"`, `"random"`. |
+
+### Exit button
+
+```python
+EXIT_KEY = None
+```
+
+Index of the key that acts as a global "return to home" button on all macro apps, shown as a red LED labelled "Exit". Set to an integer (e.g. `0` for the top-left key) to enable it globally, or `None` to disable. Individual apps can override this via `"exit_key"` in their `app` dict.
+
 ---
 
 ## Navigation
@@ -124,14 +163,15 @@ app = {
 
 | App | Type | Description |
 |-----|------|-------------|
-| `numpad.py` | Macro | Numpad keys |
 | `media.py` | Macro | Media playback & brightness |
+| `numpad.py` | Macro | Numpad keys |
 | `github.py` | Macro | Git keyboard shortcuts |
 | `web.py` | Macro | Browser shortcuts |
 | `tones.py` | Macro | Sound/tone demos |
-| `win-adobe-photoshop.py` | Macro | Photoshop shortcuts (Windows) |
+| `graphite.py` | Macro | Graphite shortcuts |
 | `pomodoro.py` | Sub-app | Focus timer with work/break sessions |
 | `bongo.py` | Sub-app | Bongo cat animation (requires `/bongo/bongo.bmp`) |
+| `fidget.py` | Sub-app | Fidget toy |
 
 ---
 

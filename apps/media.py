@@ -20,6 +20,7 @@ from adafruit_hid.consumer_control_code import ConsumerControlCode
 
 app = {               # REQUIRED dict, must be named 'app'
     'name' : 'Media', # Application name
+    'exit_key' : 0,   # Top-left key returns to home screen
     'macros' : [      # List of button macros...
         # COLOR    LABEL    KEY SEQUENCE
         # 1st row ----------
