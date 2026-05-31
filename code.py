@@ -9,7 +9,7 @@ import traceback
 from adafruit_display_shapes.rect import Rect
 from adafruit_display_text import label
 from adafruit_macropad import MacroPad
-from screensaver import get_screensaver
+from screensaver import get_screensaver, ScreensaverIntro, CYCLE_KEY, ALL_SCREENSAVERS
 
 try:
     import config
@@ -344,6 +344,9 @@ last_encoder_pos = macropad.encoder
 last_encoder_switch = macropad.encoder_switch_debounced.pressed
 last_input_time = time.monotonic()
 _screensaver = None
+_sleep_intro = None        # ScreensaverIntro shown before screensaver starts
+_sleep_saver_names = None  # ordered list of screensaver names for cycling
+_sleep_saver_idx = 0       # current position in the cycle list
 
 home.draw(apps, current_page)
 
@@ -358,15 +361,61 @@ while True:
     if state != STATE_SLEEPING and config.SLEEP_ENABLED:
         if now - last_input_time > config.SLEEP_TIMEOUT:
             state = STATE_SLEEPING
-            _screensaver = get_screensaver(config.SCREENSAVER)
-            _screensaver.start(macropad)
+            _sleep_saver_names = getattr(config, "SCREENSAVER_CYCLE", ALL_SCREENSAVERS)
+            name = getattr(config, "SCREENSAVER", "bounce")
+            _sleep_saver_idx = (
+                _sleep_saver_names.index(name)
+                if name in _sleep_saver_names
+                else 0
+            )
+            _sleep_intro = ScreensaverIntro()
+            _sleep_intro.start(macropad)
+            _screensaver = None
 
     # --- SLEEPING STATE -----------------------------------------------------
     if state == STATE_SLEEPING:
+
+        # -- Intro phase: show splash for ~3 s before screensaver starts --
+        if _sleep_intro is not None:
+            if not _sleep_intro.done:
+                _sleep_intro.tick(macropad)
+                macropad.display.refresh()
+                _wake_key = macropad.keys.events.get()
+                if _wake_key:
+                    _sleep_intro = None
+                    state = STATE_HOME
+                    last_input_time = time.monotonic()
+                    last_encoder_pos = macropad.encoder
+                    last_encoder_switch = macropad.encoder_switch_debounced.pressed
+                    while macropad.keys.events.get():
+                        pass
+                    home.draw(apps, current_page)
+                continue
+            # Intro finished — release intro group then start actual screensaver
+            _sleep_intro = None
+            import gc; gc.collect()
+            _screensaver = get_screensaver(_sleep_saver_names[_sleep_saver_idx])
+            _screensaver.start(macropad)
+
+        # -- Screensaver running: tick, then check for wake/cycle --
         macropad.encoder_switch_debounced.update()
         _wake_key = macropad.keys.events.get()
         _wake_enc = macropad.encoder != last_encoder_pos
-        _wake_sw = macropad.encoder_switch_debounced.pressed
+        _wake_sw  = macropad.encoder_switch_debounced.pressed
+
+        if _wake_key is not None:
+            if _wake_key.key_number == CYCLE_KEY:
+                if _wake_key.pressed:
+                    # Cycle to next screensaver without waking
+                    _screensaver.stop(macropad)
+                    _sleep_saver_idx = (_sleep_saver_idx + 1) % len(_sleep_saver_names)
+                    _screensaver = get_screensaver(_sleep_saver_names[_sleep_saver_idx])
+                    _screensaver.start(macropad)
+                # Ignore CYCLE_KEY release — don't wake
+                _screensaver.tick(macropad)
+                macropad.display.refresh()
+                continue
+
         if _wake_key or _wake_enc or _wake_sw:
             _screensaver.stop(macropad)
             _screensaver = None

@@ -1,13 +1,88 @@
 # Macropad OS — screensaver implementations
 # CircuitPython 10 — Adafruit MacroPad RP2040
 
+import gc
 import random
 import time
 import displayio
+import terminalio
+from adafruit_display_text import label
 
 
 # ---------------------------------------------------------------------------
-# NeoPixel row-sweep helper (shared by all screensavers)
+# Constants
+# ---------------------------------------------------------------------------
+
+# Physical key index of the bottom-right key.  Press this while the screensaver
+# is running to cycle to the next screensaver without waking the device.
+CYCLE_KEY = 11
+
+# Ordered list of all screensaver names available for cycling.
+# Used as the default when config.SCREENSAVER_CYCLE is not set.
+ALL_SCREENSAVERS = ["black", "bounce", "stars", "lines", "rain", "flight"]
+
+
+# ---------------------------------------------------------------------------
+# ScreensaverIntro — retro terminal splash shown before screensaver starts
+# ---------------------------------------------------------------------------
+
+class ScreensaverIntro:
+    """Retro terminal splash displayed for ~3 s when the screensaver activates.
+
+    Shows a simple status message and key hints, then auto-expires.
+    Any key press during the intro wakes the device immediately.
+    Adjust _DURATION to change how long the splash stays on screen.
+    """
+
+    _DURATION = 3.0
+
+    def start(self, macropad):
+        # No background bitmap — the OLED shows black for un-addressed pixels
+        # naturally, so labels on an empty Group give white-on-black at zero
+        # bitmap cost.  This avoids a MemoryError when transitioning to the
+        # actual screensaver which also needs to allocate a full-screen bitmap.
+        self._group = displayio.Group()
+
+        lines = [
+            "> SCREEN SAVER",
+            "> STARTING...",
+            "",
+            "[KEY 11] CYCLE",
+            "[ANY]    WAKE",
+        ]
+        for i, text in enumerate(lines):
+            if text:
+                self._group.append(label.Label(
+                    terminalio.FONT,
+                    text=text,
+                    color=0xFFFFFF,
+                    anchored_position=(2, 4 + i * 12),
+                    anchor_point=(0.0, 0.0),
+                ))
+
+        macropad.pixels.fill(0)
+        macropad.pixels.show()
+        macropad.display.root_group = self._group
+        macropad.display.refresh()
+        self._deadline = time.monotonic() + self._DURATION
+
+    @property
+    def done(self):
+        """True once the display duration has elapsed."""
+        return time.monotonic() >= self._deadline
+
+    def tick(self, macropad):
+        pass  # static display; extend here for a blinking cursor, etc.
+
+    def stop(self, macropad):
+        # Pop all Label children so they can be collected before the next
+        # screensaver allocates its full-screen bitmap.
+        while len(self._group):
+            self._group.pop()
+
+
+# ---------------------------------------------------------------------------
+# NeoPixel row-sweep helper (used by animated savers that want subtle LEDs)
 # ---------------------------------------------------------------------------
 
 class _PixelSweep:
@@ -76,23 +151,24 @@ class _PixelSweep:
 
 
 # ---------------------------------------------------------------------------
-# BlackScreensaver
+# BlackScreensaver — display AND keypad fully off
 # ---------------------------------------------------------------------------
 
 class BlackScreensaver:
-    """Turn the display off completely — best burn-in prevention."""
+    """Turn the display AND keypad off completely — best burn-in prevention."""
 
     def start(self, macropad):
         macropad.display.brightness = 0
-        self._sweep = _PixelSweep()
-        self._sweep.start(macropad)
+        macropad.pixels.fill(0)
+        macropad.pixels.show()
 
     def tick(self, macropad):
-        self._sweep.tick(macropad)
+        pass
 
     def stop(self, macropad):
         macropad.display.brightness = 1.0
-        self._sweep.stop(macropad)
+        macropad.pixels.fill(0)
+        macropad.pixels.show()
 
 
 # ---------------------------------------------------------------------------
@@ -100,15 +176,24 @@ class BlackScreensaver:
 # ---------------------------------------------------------------------------
 
 def _make_canvas(macropad):
-    """Return (group, bitmap, palette) covering the full display."""
+    """Return (group, bitmap, palette) covering the full display.
+
+    Replaces root_group with an empty Group *before* allocating the bitmap
+    so that any previous root group (e.g. the intro splash) is released from
+    the display and can be collected, freeing the ~1 KB needed for the bitmap.
+    """
     w = macropad.display.width
     h = macropad.display.height
+    # Swap in an empty group first so the display drops its reference to the
+    # previous root group (intro labels, etc.) before we need the RAM.
+    group = displayio.Group()
+    macropad.display.root_group = group
+    gc.collect()
     palette = displayio.Palette(2)
     palette[0] = 0x000000
     palette[1] = 0xFFFFFF
     bitmap = displayio.Bitmap(w, h, 2)
     tile = displayio.TileGrid(bitmap, pixel_shader=palette)
-    group = displayio.Group()
     group.append(tile)
     return group, bitmap, palette
 
@@ -364,26 +449,90 @@ class RainScreensaver:
 
 
 # ---------------------------------------------------------------------------
+# FlightScreensaver
+# ---------------------------------------------------------------------------
+
+class FlightScreensaver:
+    """Aircraft navigation lights with periodic anti-collision strobe.
+
+    Keypad:
+        key 9  (bottom-left)  → red   (port nav light)
+        key 11 (bottom-right) → green (starboard nav light)
+        all other keys        → off
+        strobe burst          → top row (keys 0-2) briefly white, then restore
+
+    Display: off (brightness = 0) to prevent burn-in.
+
+    Tune the effect by changing the public class attributes below.
+    """
+
+    STROBE_INTERVAL = 2.0          # seconds between anti-collision strobes
+    STROBE_ON_S     = 0.08         # duration of each strobe flash
+    PORT_COLOR      = (20, 0, 0)   # red   — bottom-left key (port)
+    STBD_COLOR      = (0, 20, 0)   # green — bottom-right key (starboard)
+    STROBE_COLOR    = (40, 40, 40) # brief white-ish keypad flash
+
+    _PORT_KEY    = 9
+    _STBD_KEY    = 11
+    _STROBE_KEYS = (0, 1, 2)       # top row only
+
+    def _set_nav_pixels(self, macropad):
+        macropad.pixels.fill(0)
+        macropad.pixels[self._PORT_KEY] = self.PORT_COLOR
+        macropad.pixels[self._STBD_KEY] = self.STBD_COLOR
+        macropad.pixels.show()
+
+    def start(self, macropad):
+        macropad.display.brightness = 0
+        self._strobing    = False
+        self._next_strobe = time.monotonic() + self.STROBE_INTERVAL
+        self._strobe_end  = 0.0
+        self._set_nav_pixels(macropad)
+
+    def tick(self, macropad):
+        now = time.monotonic()
+
+        if not self._strobing and now >= self._next_strobe:
+            self._strobing   = True
+            self._strobe_end = now + self.STROBE_ON_S
+            for k in self._STROBE_KEYS:
+                macropad.pixels[k] = self.STROBE_COLOR
+            macropad.pixels.show()
+
+        elif self._strobing and now >= self._strobe_end:
+            self._strobing    = False
+            self._next_strobe = now + self.STROBE_INTERVAL
+            self._set_nav_pixels(macropad)
+
+    def stop(self, macropad):
+        macropad.display.brightness = 1.0
+        macropad.pixels.fill(0)
+        macropad.pixels.show()
+
+
+# ---------------------------------------------------------------------------
 # Factory
 # ---------------------------------------------------------------------------
 
-_ANIMATED = [BounceScreensaver, StarsScreensaver, LinesScreensaver, RainScreensaver]
+_ANIMATED = [
+    BounceScreensaver,
+    StarsScreensaver,
+    LinesScreensaver,
+    RainScreensaver,
+    FlightScreensaver,
+]
 
 
 def get_screensaver(name):
     """Return a new screensaver instance. Reseeds random each call."""
     random.seed(int(time.monotonic() * 1000) % 65536)
 
-    if name == "black":
-        return BlackScreensaver()
-    if name == "bounce":
-        return BounceScreensaver()
-    if name == "stars":
-        return StarsScreensaver()
-    if name == "lines":
-        return LinesScreensaver()
-    if name == "rain":
-        return RainScreensaver()
+    if name == "black":   return BlackScreensaver()
+    if name == "bounce":  return BounceScreensaver()
+    if name == "stars":   return StarsScreensaver()
+    if name == "lines":   return LinesScreensaver()
+    if name == "rain":    return RainScreensaver()
+    if name == "flight":  return FlightScreensaver()
     if name == "random":
         cls = _ANIMATED[random.randrange(len(_ANIMATED))]
         return cls()
@@ -418,10 +567,14 @@ class SleepManager:
                     sleep.notify_input()
                     handle(event)
 
-    Any key press, encoder turn, or encoder press wakes the screen.
+    On sleep, a brief retro intro splash is shown for ~3 s before the
+    screensaver animation starts.  While the screensaver is running:
+      - Press CYCLE_KEY (bottom-right, key 11) to advance to the next
+        screensaver without waking.
+      - Any other key, encoder turn, or encoder press wakes the screen.
+
     The waking input is consumed so it doesn't trigger an unintended action.
-    After waking, the caller is responsible for redrawing its own UI.
-    The SleepManager only restores pixel state; display redraws are up to you.
+    After waking the caller is responsible for redrawing its own UI.
     """
 
     def __init__(self, cfg):
@@ -430,6 +583,9 @@ class SleepManager:
         self._screensaver  = None
         self._sleeping     = False
         self._last_enc_pos = None
+        self._intro        = None
+        self._saver_names  = None
+        self._saver_idx    = 0
 
     @property
     def sleeping(self):
@@ -443,10 +599,10 @@ class SleepManager:
         """Call once per loop iteration.
 
         While awake:  checks the timeout and initiates sleep if needed.
-        While asleep: ticks the screensaver animation and checks for wake.
+        While asleep: runs the intro or screensaver and checks for wake/cycle.
 
         Returns True on the frame the screen wakes up — caller should redraw
-        its UI and then `continue` to skip input handling for that iteration.
+        its UI and then ``continue`` to skip input handling for that iteration.
         Returns False in all other cases.
         """
         now = time.monotonic()
@@ -460,37 +616,82 @@ class SleepManager:
             if now - self._last_input > self._cfg.SLEEP_TIMEOUT:
                 self._sleeping     = True
                 self._last_enc_pos = macropad.encoder
-                self._screensaver  = get_screensaver(self._cfg.SCREENSAVER)
-                self._screensaver.start(macropad)
+                self._saver_names  = getattr(
+                    self._cfg, "SCREENSAVER_CYCLE", ALL_SCREENSAVERS
+                )
+                name = getattr(self._cfg, "SCREENSAVER", "bounce")
+                if name in self._saver_names:
+                    self._saver_idx = self._saver_names.index(name)
+                else:
+                    self._saver_idx = 0
+                self._intro = ScreensaverIntro()
+                self._intro.start(macropad)
 
         if not self._sleeping:
             return False
 
-        # --- Sleeping: tick animation, then check for wake ---
+        # --- Intro phase ---
+        if self._intro is not None:
+            if not self._intro.done:
+                self._intro.tick(macropad)
+                macropad.display.refresh()
+                wake_key = macropad.keys.events.get()
+                if wake_key:
+                    self._intro.stop(macropad)
+                    self._intro    = None
+                    self._sleeping = False
+                    self._last_input = time.monotonic()
+                    macropad.display.root_group = displayio.Group()
+                    while macropad.keys.events.get():
+                        pass
+                    return True
+                return False
+            # Intro finished — release intro group then start actual screensaver
+            self._intro.stop(macropad)
+            self._intro = None
+            gc.collect()
+            self._screensaver = get_screensaver(self._saver_names[self._saver_idx])
+            self._screensaver.start(macropad)
+
+        # --- Sleeping: tick animation, then check for wake/cycle ---
         self._screensaver.tick(macropad)
         macropad.display.refresh()
 
         macropad.encoder_switch_debounced.update()
         enc_pos  = macropad.encoder
-        wake_key = macropad.keys.events.get()
+        key_evt  = macropad.keys.events.get()
         wake_enc = enc_pos != self._last_enc_pos
         wake_sw  = macropad.encoder_switch_debounced.pressed
 
-        if wake_key or wake_enc or wake_sw:
+        if key_evt is not None:
+            if key_evt.key_number == CYCLE_KEY:
+                if key_evt.pressed:
+                    # Cycle to next screensaver without waking
+                    self._screensaver.stop(macropad)
+                    self._saver_idx   = (self._saver_idx + 1) % len(self._saver_names)
+                    self._screensaver = get_screensaver(self._saver_names[self._saver_idx])
+                    self._screensaver.start(macropad)
+                # Ignore CYCLE_KEY release — don't wake
+                return False
+
+        if key_evt or wake_enc or wake_sw:
             self._screensaver.stop(macropad)
             self._screensaver  = None
             self._sleeping     = False
             self._last_input   = time.monotonic()
             self._last_enc_pos = macropad.encoder
-            # Drain remaining key events so the wake input isn't acted on.
+            macropad.display.root_group = displayio.Group()
             while macropad.keys.events.get():
                 pass
-            return True  # caller should redraw its UI and continue
+            return True
 
         return False
 
     def force_stop(self, macropad):
-        """Stop any active screensaver immediately (call before returning from run())."""
+        """Stop any active intro or screensaver immediately (call before returning from run())."""
+        if self._intro is not None:
+            self._intro.stop(macropad)
+            self._intro = None
         if self._sleeping and self._screensaver:
             self._screensaver.stop(macropad)
             self._screensaver = None

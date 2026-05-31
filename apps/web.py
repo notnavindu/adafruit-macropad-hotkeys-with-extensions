@@ -7,7 +7,7 @@
 from adafruit_hid.keycode import Keycode  # REQUIRED if using Keycode.* values
 
 app = {                      # REQUIRED dict, must be named 'app'
-    'name': 'Web Browsing',  # Application name
+    'name': 'web',  # Application name
     'macros': [             # List of button macros...
         # COLOR    LABEL    KEY SEQUENCE
         # 1st row ----------

@@ -3,12 +3,13 @@ from adafruit_hid.keycode import Keycode
 app = {
     'name': 'gt',
     'auto_return': True,
+    'exit_key': 11,
     'macros': [
         # COLOR    LABEL    KEY SEQUENCE
         # 1st row ----------
         (0x003838, 'ls',    ['gt ls\n']),
         (0x003838, 'log',   ['gt log short\n']),
-        (0x003838, 'trunk', ['gt trunk\n']),
+        (0x003838, 'submit', ['gt submit\n']),
         # 2nd row ----------
         (0x002850, 'up',    ['gt up\n']),
         (0x002850, 'down',  ['gt down\n']),
@@ -20,7 +21,7 @@ app = {
         # 4th row ----------
         (0x500028, 'top',   ['gt top\n']),
         (0x500028, 'btm',   ['gt bottom\n']),
-        (0x500028, 'submt', ['gt submit\n']),
+        (0x500028, '', []),
         # Encoder button ---
         (0x000000, '', []),
     ]

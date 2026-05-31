@@ -32,6 +32,44 @@ Copy `config.py` to the device root to customise behaviour. All settings have se
 
 ---
 
+## Serial Console (REPL & logs)
+
+The MacroPad exposes a serial port over USB that gives you access to the CircuitPython REPL and live `print()` output from your code.
+
+### 1. Find the port
+
+With the MacroPad plugged in, run:
+
+```sh
+ls /dev/tty.*
+```
+
+Look for a new entry that wasn't there before — it will look something like `/dev/tty.usbmodem1234`. That's your board.
+
+### 2. Connect with `tio`
+
+[`tio`](https://github.com/tio/tio) is the recommended terminal program on macOS. Install it with Homebrew if you don't have it:
+
+```sh
+brew install tio
+```
+
+Then connect (replace the port name with the one you found above):
+
+```sh
+tio /dev/tty.usbmodem1234
+```
+
+> **Why not `screen`?** macOS ships with `screen`, but it enables DTR/RTS flow control signals and doesn't clear them on exit. This causes CircuitPython to block all `print()` output until you reconnect, effectively hanging your program. `tio` doesn't have this problem.
+
+Once connected, you'll see live output from your code and can drop into the REPL by pressing **Ctrl+C**. Press **Ctrl+D** to soft-reset and restart `code.py`.
+
+To disconnect from `tio`, press **Ctrl+T** then **Q**.
+
+For more detail see the [Adafruit guide on the advanced serial console](https://learn.adafruit.com/welcome-to-circuitpython/advanced-serial-console-on-mac-and-linux).
+
+---
+
 ## Configuration
 
 `config.py` lives in the device root alongside `code.py`. Copy the one from this repo and edit it to suit your setup.

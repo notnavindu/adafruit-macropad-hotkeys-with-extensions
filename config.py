@@ -13,13 +13,19 @@ SLEEP_TIMEOUT = 60
 
 # Which screensaver to show when the display sleeps.
 # Options:
-#   "black"  — turn the display off completely (best for burn-in prevention)
-#   "bounce" — a single pixel bounces around the screen
-#   "stars"  — sparse pixels slowly flicker independently like distant stars
-#   "lines"  — two horizontal lines drift downward at different speeds
-#   "rain"   — sparse falling pixel drops (minimal matrix rain)
-#   "random" — pick a random animated screensaver each time the screen sleeps
+#   "black"   — display AND keypad fully off (best for burn-in prevention)
+#   "bounce"  — a single pixel bouncing around the screen
+#   "stars"   — sparse pixels slowly flicker independently like distant stars
+#   "lines"   — two horizontal lines drift downward at different speeds
+#   "rain"    — sparse falling pixel drops (minimal matrix rain)
+#   "flight"  — aircraft nav lights (red/green keypad) with strobe flashes
+#   "random"  — pick a random animated screensaver each time the screen sleeps
 SCREENSAVER = "rain"
+
+# List of screensaver names to cycle through by pressing the bottom-right key
+# (key 11) while the screensaver is running.  Omit or set to None to use all
+# available screensavers in their default order.
+# SCREENSAVER_CYCLE = ["black", "bounce", "stars", "lines", "rain", "flight"]
 
 # ---------------------------------------------------------------------------
 # Exit button
@@ -41,10 +47,11 @@ EXIT_KEY = None
 # folder are loaded alphabetically.
 APPS = [
     "media",
-    "numpad",
-    "pomodoro",
+    "obsidian",
     "github",
     "graphite",
+    "pomodoro",
+    "numpad",
     "fidget",
-    "web"
+    "web",
 ]

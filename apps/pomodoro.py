@@ -73,9 +73,10 @@ def _light_pulse(macropad):
         macropad.pixels.show()
         time.sleep(0.1)
     macropad.pixels.fill((0, 0, 0))
-    macropad.pixels[0] = (27, 148, 0)
-    macropad.pixels[1] = (252, 186, 3)
-    macropad.pixels[2] = (255, 0, 0)
+    macropad.pixels[0]  = (27, 148, 0)
+    macropad.pixels[1]  = (252, 186, 3)
+    macropad.pixels[2]  = (255, 0, 0)
+    macropad.pixels[11] = (68, 0, 0)
     macropad.pixels.show()
 
 
@@ -110,9 +111,10 @@ def _build_display(macropad):
 
 def _set_pixels(macropad):
     macropad.pixels.fill((0, 0, 0))
-    macropad.pixels[0] = (27, 148, 0)
-    macropad.pixels[1] = (252, 186, 3)
-    macropad.pixels[2] = (255, 0, 0)
+    macropad.pixels[0]  = (27, 148, 0)
+    macropad.pixels[1]  = (252, 186, 3)
+    macropad.pixels[2]  = (255, 0, 0)
+    macropad.pixels[11] = (68, 0, 0)
     macropad.pixels.show()
 
 
@@ -150,6 +152,10 @@ def run(macropad):
         if event and event.pressed:
             sleep.notify_input()
             k = event.key_number
+
+            if k == 11:  # Exit → return to home screen
+                sleep.force_stop(macropad)
+                return
 
             if k == 0:  # Start / restart
                 state["start_time"]    = time.time()
