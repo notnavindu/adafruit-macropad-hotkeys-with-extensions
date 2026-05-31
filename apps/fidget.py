@@ -73,27 +73,37 @@ def _build_tables():
     Returns a ctx tuple passed to _render_oled.  Keeping the tables as
     locals inside run() means they are freed as soon as the user exits
     the app — no permanent RAM cost while other apps are running.
+
+    Uses array.append() throughout to avoid large intermediate Python lists,
+    which would each cost ~4-6 KB of temporary heap on CircuitPython.
     """
     import gc
+    gc.collect()  # free home-screen objects before allocating
+
     oled_col = [bx * 2.0 / (_OLED_W - 1) for bx in range(_OLED_W)]
     oled_row = [by * 3.0 / (_OLED_H - 1) for by in range(_OLED_H)]
 
-    oled_cs = array.array('f', [oled_col[i % _OLED_W] for i in range(_OLED_N)])
-    oled_rs = array.array('f', [oled_row[i // _OLED_W] for i in range(_OLED_N)])
-    oled_cx = array.array('B', [(i % _OLED_W) * 4 + 2 for i in range(_OLED_N)])
-    oled_cy = array.array('B', [(i // _OLED_W) * 4 + 2 for i in range(_OLED_N)])
+    oled_cs = array.array('f')
+    oled_rs = array.array('f')
+    oled_cx = array.array('B')
+    oled_cy = array.array('B')
+    for i in range(_OLED_N):
+        oled_cs.append(oled_col[i % _OLED_W])
+        oled_rs.append(oled_row[i // _OLED_W])
+        oled_cx.append((i % _OLED_W) * 4 + 2)
+        oled_cy.append((i // _OLED_W) * 4 + 2)
 
     oled_dist = []
     for k in range(12):
         kc = _COL[k]
         kr = _ROW[k]
-        tmp = []
+        row = array.array('f')
         for i in range(_OLED_N):
             dx = oled_col[i % _OLED_W] - kc
             dy = oled_row[i // _OLED_W] - kr
-            tmp.append(math.sqrt(dx * dx + dy * dy))
-        oled_dist.append(array.array('f', tmp))
-        del tmp
+            row.append(math.sqrt(dx * dx + dy * dy))
+        oled_dist.append(row)
+
     del oled_col, oled_row
     gc.collect()
     return oled_dist, oled_cs, oled_rs, oled_cx, oled_cy, bytearray(_OLED_N), bytes(_OLED_N)
